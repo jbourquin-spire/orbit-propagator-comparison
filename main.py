@@ -26,6 +26,7 @@ BENCHMARKS = [
     {"key": "jspredict", "cmd": ["npx", "tsx", "benchmarks/jspredict_benchmark.ts"]},
     {"key": "skyfield", "cmd": ["uv", "run", "python", "benchmarks/skyfield_benchmark.py"]},
     {"key": "beyond", "cmd": ["uv", "run", "python", "benchmarks/beyond_benchmark.py"]},
+    {"key": "pypredict", "cmd": ["uv", "run", "python", "benchmarks/pypredict_benchmark.py"]},
 ]
 
 # Default observer location (Boulder, Colorado) used when --observer is omitted.

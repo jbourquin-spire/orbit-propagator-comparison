@@ -190,6 +190,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "beyond" },
+    { name = "pypredict" },
     { name = "rich" },
     { name = "skyfield" },
 ]
@@ -197,6 +198,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "beyond", specifier = ">=0.9" },
+    { name = "pypredict", specifier = ">=1.8.1" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "skyfield", specifier = ">=1.55" },
 ]
@@ -208,6 +210,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/49/2e/ced460408999b33da6b31b0021b0f37d329e202d4169aeb164493778f25b/pygments-2.21.0.tar.gz", hash = "sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c", size = 5005329, upload-time = "2026-08-17T08:02:48.824Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl", hash = "sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9", size = 1250147, upload-time = "2026-08-17T08:02:44.912Z" },
+]
+
+[[package]]
+name = "pypredict"
+version = "1.8.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/21/947cff9cc3fb51d65ece286fe762a86231f1611ee28ef772e6304df64765/pypredict-1.8.1.tar.gz", hash = "sha256:e5fd88f8caeda8699e75f79cd39f079f318c4ac44af4abc43cfc1c0abe1aff17", size = 48682, upload-time = "2026-08-06T15:12:08.787Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/fd/5534b3278dba88173c64f9d7d132ca4913e01d04b434404b5a2257668cdd/pypredict-1.8.1-cp314-cp314-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:c8062ec422cc058aa5b7d364b34d6db838b362da470952f8e4685a4c19c2b633", size = 124864, upload-time = "2026-08-06T15:12:03.865Z" },
+    { url = "https://files.pythonhosted.org/packages/54/ea/ef92b4dbea83760976b2747257768a00657787bb586bac25a33c7273d6e9/pypredict-1.8.1-cp314-cp314t-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:753bad9b346d266046998e469e16704946850a0361b1785a513c7a4ab08e4bfa", size = 126365, upload-time = "2026-08-06T15:12:04.97Z" },
 ]
 
 [[package]]
