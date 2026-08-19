@@ -1,0 +1,33 @@
+{
+  "name": "orbit-propagator-comparison",
+  "version": "1.0.0",
+  "description": "Comparison of varios orbit propagators",
+  "keywords": [
+    "jspredict",
+    "orbit",
+    "TLE",
+    "OMM"
+  ],
+  "homepage": "https://github.com/jbourquin-spire/orbit-propagator-comparison#readme",
+  "bugs": {
+    "url": "https://github.com/jbourquin-spire/orbit-propagator-comparison/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbourquin-spire/orbit-propagator-comparison.git"
+  },
+  "license": "MIT",
+  "author": "Joshua Bourquin",
+  "type": "module",
+  "main": "main.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nsat/jspredict": "^2.0.0",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.4"
+  }
+}
