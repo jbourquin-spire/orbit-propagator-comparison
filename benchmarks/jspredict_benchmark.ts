@@ -1,4 +1,4 @@
-import { satelliteTransits, AngularUnits, type OrbitMeanElementsMessage } from '@nsat/jspredict';
+import { satelliteObservation, satelliteTransits, AngularUnits, type OrbitMeanElementsMessage } from '@nsat/jspredict';
 import { DateTime } from 'luxon';
 import { readFileSync } from 'fs';
 
@@ -88,15 +88,24 @@ async function computeTransits(ommData: OMMData, observer: Observer): Promise<Tr
   return results;
 }
 
+function computeBetaAngleDeg(ommData: OMMData): number {
+  const epoch = ommData.EPOCH.endsWith('Z') ? ommData.EPOCH : `${ommData.EPOCH}Z`;
+  const observation = satelliteObservation(ommData, epoch, undefined, {
+    betaAngleAngularUnits: AngularUnits.Degrees,
+  });
+  return observation.betaAngle as number;
+}
+
 function formatNumber(num: number): string {
   return num.toFixed(3);
 }
 
-function printTransitTable(satelliteName: string, transits: TransitResult[], executionTime: number, observer: Observer) {
+function printTransitTable(satelliteName: string, transits: TransitResult[], executionTime: number, observer: Observer, betaAngleDeg: number) {
   console.log(`\n${'='.repeat(80)}`);
   console.log(`Satellite: ${satelliteName}`);
   console.log(`Library: jspredict (TypeScript)`);
   console.log(`Observer: (${observer.lat}°, ${observer.lon}°, ${observer.alt}m)`);
+  console.log(`Beta Angle at Epoch: ${betaAngleDeg.toFixed(6)}°`);
   console.log(`Execution Time: ${executionTime.toFixed(3)} ms`);
   console.log(`${'='.repeat(80)}`);
   
@@ -162,11 +171,13 @@ async function main() {
   const transits = await computeTransits(ommData, observer);
   const endTime = performance.now();
   const executionTime = endTime - startTime;
+  const betaAngleDeg = computeBetaAngleDeg(ommData);
 
   if (jsonMode) {
     const satellites = [{
       name: ommData.OBJECT_NAME,
       norad_cat_id: (ommData as any).NORAD_CAT_ID,
+      beta_angle_deg: betaAngleDeg,
       execution_time_ms: executionTime,
       transits: transits.map(t => ({
         start: { time: t.start.time, azimuth: t.start.azimuth, elevation: t.start.elevation, range: t.start.range },
@@ -176,9 +187,8 @@ async function main() {
     }];
     console.log(JSON.stringify({ library: 'jspredict (TypeScript)', satellites }));
   } else {
-    printTransitTable(ommData.OBJECT_NAME, transits, executionTime, observer);
+    printTransitTable(ommData.OBJECT_NAME, transits, executionTime, observer, betaAngleDeg);
   }
 }
 
 main().catch(console.error);
-

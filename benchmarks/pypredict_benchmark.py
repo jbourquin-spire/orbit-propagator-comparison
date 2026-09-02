@@ -110,6 +110,17 @@ def compute_transits(omm_data: Dict, lat: float, lon: float, alt: float) -> Tupl
     return transits, execution_time
 
 
+def compute_beta_angle_deg(omm_data: Dict, lat: float, lon: float, alt: float) -> float:
+    """Compute the satellite beta angle at the OMM epoch."""
+    tle = f"{omm_data['OBJECT_NAME']}\n{omm_data['TLE_LINE1']}\n{omm_data['TLE_LINE2']}"
+    epoch_dt = datetime.fromisoformat(omm_data['EPOCH'].replace('Z', '+00:00'))
+    if epoch_dt.tzinfo is None:
+        epoch_dt = epoch_dt.replace(tzinfo=timezone.utc)
+    qth = (lat, -lon, int(alt))
+    observation = predict.observe(tle, qth, at=epoch_dt.timestamp())
+    return float(observation['beta_angle'])
+
+
 def _iso_millis(epoch: float) -> str:
     """Format a unix timestamp as an ISO-8601 UTC string with millisecond precision."""
     dt = datetime.fromtimestamp(epoch, timezone.utc)
@@ -117,12 +128,13 @@ def _iso_millis(epoch: float) -> str:
 
 
 def print_transit_table(satellite_name: str, transits: List[Transit], execution_time: float,
-                        lat: float, lon: float, alt: float):
+                        lat: float, lon: float, alt: float, beta_angle_deg: float):
     """Print formatted transit table"""
     print(f"\n{'=' * 80}")
     print(f"Satellite: {satellite_name}")
     print(f"Library: pypredict (Python)")
     print(f"Observer: ({lat}°, {lon}°, {alt}m)")
+    print(f"Beta Angle at Epoch: {beta_angle_deg:.6f}°")
     print(f"Execution Time: {execution_time:.3f} ms")
     print(f"{'=' * 80}")
 
@@ -154,10 +166,12 @@ def build_results(omm_file: str, lat: float, lon: float, alt: float) -> Dict:
     """Compute transits for a single OMM file and return a JSON-serializable dict."""
     omm_data = parse_omm(omm_file)
     transits, execution_time = compute_transits(omm_data, lat, lon, alt)
+    beta_angle_deg = compute_beta_angle_deg(omm_data, lat, lon, alt)
 
     satellites = [{
         "name": omm_data['OBJECT_NAME'],
         "norad_cat_id": omm_data.get('NORAD_CAT_ID'),
+        "beta_angle_deg": beta_angle_deg,
         "execution_time_ms": execution_time,
         "transits": [
             {
@@ -201,7 +215,10 @@ def main():
     omm_data = parse_omm(args.omm_file)
     try:
         transits, execution_time = compute_transits(omm_data, lat, lon, alt)
-        print_transit_table(omm_data['OBJECT_NAME'], transits, execution_time, lat, lon, alt)
+        beta_angle_deg = compute_beta_angle_deg(omm_data, lat, lon, alt)
+        print_transit_table(
+            omm_data['OBJECT_NAME'], transits, execution_time, lat, lon, alt, beta_angle_deg
+        )
     except Exception as e:
         print(f"\nError processing {args.omm_file}: {e}")
 

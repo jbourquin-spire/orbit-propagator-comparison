@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Tuple
 import numpy as np
 from beyond.dates import Date
+from beyond.env.solarsystem import get_body
 from beyond.io.tle import Tle
 from beyond.frames import create_station
 from beyond.orbits import Orbit
@@ -29,6 +30,16 @@ class Transit:
         self.start = start
         self.peak = peak
         self.stop = stop
+
+
+def _beta_angle_deg(position_km, velocity_km_s, sun_position_km) -> float:
+    """Compute beta angle from inertial position, velocity, and Sun vectors."""
+    h = np.cross(position_km, velocity_km_s)
+    value = np.dot(
+        h / np.linalg.norm(h),
+        sun_position_km / np.linalg.norm(sun_position_km),
+    )
+    return float(np.degrees(np.arcsin(np.clip(value, -1.0, 1.0))))
 
 def parse_omm(file_path: str) -> Dict:
     """Parse OMM JSON file"""
@@ -111,13 +122,27 @@ def compute_transits(omm_data: Dict, lat: float, lon: float, alt: float) -> Tupl
     
     return transits, execution_time
 
+
+def compute_beta_angle_deg(omm_data: Dict) -> float:
+    """Compute the satellite beta angle at the OMM epoch."""
+    tle = Tle(f"{omm_data['OBJECT_NAME']}\n{omm_data['TLE_LINE1']}\n{omm_data['TLE_LINE2']}")
+    orbit0 = tle.orbit()
+    orbit = orbit0.propagate(orbit0.date)
+    sun = get_body('Sun').propagate(orbit.date).copy(frame='TEME')
+    return _beta_angle_deg(
+        np.array(orbit[:3]) / 1000.0,
+        np.array(orbit[3:]) / 1000.0,
+        np.array(sun[:3]) / 1000.0,
+    )
+
 def print_transit_table(satellite_name: str, transits: List[Transit], execution_time: float,
-                        lat: float, lon: float, alt: float):
+                        lat: float, lon: float, alt: float, beta_angle_deg: float):
     """Print formatted transit table"""
     print(f"\n{'=' * 80}")
     print(f"Satellite: {satellite_name}")
     print(f"Library: beyond (Python)")
     print(f"Observer: ({lat}°, {lon}°, {alt}m)")
+    print(f"Beta Angle at Epoch: {beta_angle_deg:.6f}°")
     print(f"Execution Time: {execution_time:.3f} ms")
     print(f"{'=' * 80}")
     
@@ -148,10 +173,12 @@ def build_results(omm_file: str, lat: float, lon: float, alt: float) -> Dict:
     """Compute transits for a single OMM file and return a JSON-serializable dict."""
     omm_data = parse_omm(omm_file)
     transits, execution_time = compute_transits(omm_data, lat, lon, alt)
+    beta_angle_deg = compute_beta_angle_deg(omm_data)
 
     satellites = [{
         "name": omm_data['OBJECT_NAME'],
         "norad_cat_id": omm_data.get('NORAD_CAT_ID'),
+        "beta_angle_deg": beta_angle_deg,
         "execution_time_ms": execution_time,
         "transits": [
             {
@@ -194,7 +221,10 @@ def main():
     omm_data = parse_omm(args.omm_file)
     try:
         transits, execution_time = compute_transits(omm_data, lat, lon, alt)
-        print_transit_table(omm_data['OBJECT_NAME'], transits, execution_time, lat, lon, alt)
+        beta_angle_deg = compute_beta_angle_deg(omm_data)
+        print_transit_table(
+            omm_data['OBJECT_NAME'], transits, execution_time, lat, lon, alt, beta_angle_deg
+        )
     except Exception as e:
         print(f"\nError processing {args.omm_file}: {e}")
 

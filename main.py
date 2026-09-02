@@ -3,8 +3,8 @@
 
 Runs the three benchmark scripts in ./benchmarks (jspredict, skyfield, beyond),
 gathers their JSON results, matches up transits that correspond to the same
-physical pass, and renders a rich comparison table per transit so the
-per-library start/peak/stop calculations can be compared side by side.
+physical pass, and renders rich comparison tables so the per-library
+start/peak/stop calculations and beta angles can be compared side by side.
 """
 
 import argparse
@@ -236,6 +236,41 @@ def render_timing_table(results: Dict[str, Dict], lib_order: List[str]) -> Table
     return table
 
 
+def render_beta_angle_table(results: Dict[str, Dict], lib_order: List[str]) -> Table:
+    """Build a table comparing beta angle at the OMM epoch by satellite."""
+    table = Table(
+        title="Beta Angle at OMM Epoch (deg)",
+        box=box.ROUNDED,
+        title_style="bold blue",
+        header_style="bold cyan",
+    )
+    table.add_column("Satellite", style="bold")
+    present_libs = [k for k in lib_order if k in results]
+    for lib_key in present_libs:
+        table.add_column(lib_key, justify="right")
+
+    sat_names: List[str] = []
+    for lib_key in present_libs:
+        for sat in results[lib_key]["satellites"]:
+            if sat["name"] not in sat_names:
+                sat_names.append(sat["name"])
+
+    for name in sat_names:
+        cells = []
+        for lib_key in present_libs:
+            match = next(
+                (s for s in results[lib_key]["satellites"] if s["name"] == name),
+                None,
+            )
+            if match and match.get("beta_angle_deg") is not None:
+                cells.append(f"{match['beta_angle_deg']:.6f}")
+            else:
+                cells.append("[dim]—[/dim]")
+        table.add_row(name, *cells)
+
+    return table
+
+
 def render_input_parameters(omm_file: str, omm_data: Dict, observer: Dict) -> Panel:
     """Build a panel summarizing the shared inputs used by all three benchmarks."""
     epoch_str = omm_data.get("EPOCH", "")
@@ -322,6 +357,8 @@ def main():
         return
 
     lib_order = [b["key"] for b in BENCHMARKS]
+    console.print()
+    console.print(render_beta_angle_table(results, lib_order))
     console.print()
 
     satellites = index_satellites(results)

@@ -8,12 +8,15 @@ import argparse
 import json
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Dict, Tuple
-from skyfield.api import EarthSatellite, load, wgs84, utc
+from skyfield.api import EarthSatellite, Loader, wgs84, utc
+from skyfield.sgp4lib import TEME
 from skyfield.timelib import Time
 import numpy as np
 
 LIBRARY_NAME = "skyfield (Python)"
+SKYFIELD_LOADER = Loader(str(Path.home() / ".skyfield"))
 
 class TransitPoint:
     def __init__(self, time: Time, azimuth: float, elevation: float, range_km: float):
@@ -49,6 +52,31 @@ def _look_angles(sat: EarthSatellite, observer, t: Time) -> TransitPoint:
         azimuth=az.degrees,
         elevation=alt.degrees,
         range_km=dist.km,
+    )
+
+
+def _beta_angle_deg(position_km, velocity_km_s, sun_position_km) -> float:
+    """Compute beta angle from inertial position, velocity, and Sun vectors."""
+    h = np.cross(position_km, velocity_km_s)
+    value = np.dot(
+        h / np.linalg.norm(h),
+        sun_position_km / np.linalg.norm(sun_position_km),
+    )
+    return float(np.degrees(np.arcsin(np.clip(value, -1.0, 1.0))))
+
+
+def compute_beta_angle_deg(omm_data: Dict) -> float:
+    """Compute the satellite beta angle at the OMM epoch."""
+    ts = SKYFIELD_LOADER.timescale()
+    satellite = EarthSatellite.from_omm(ts, omm_data)
+    t = satellite.epoch
+    satellite_at = satellite.at(t)
+    ephemeris = SKYFIELD_LOADER("de421.bsp")
+    sun_at = (ephemeris["sun"] - ephemeris["earth"]).at(t)
+    return _beta_angle_deg(
+        satellite_at.frame_xyz(TEME).km,
+        satellite_at.frame_xyz_and_velocity(TEME)[1].km_per_s,
+        sun_at.frame_xyz(TEME).km,
     )
 
 
@@ -88,7 +116,7 @@ def compute_transits(omm_data: Dict, lat: float, lon: float, alt: float) -> Tupl
     start_time_compute = time.perf_counter()
     
     # Create timescale and observer
-    ts = load.timescale()
+    ts = SKYFIELD_LOADER.timescale()
     observer = wgs84.latlon(lat, lon, alt)
     
     # Build the satellite directly from OMM fields (native OMM support)
@@ -107,12 +135,13 @@ def compute_transits(omm_data: Dict, lat: float, lon: float, alt: float) -> Tupl
     return transits, execution_time
 
 def print_transit_table(satellite_name: str, transits: List[Transit], execution_time: float,
-                        lat: float, lon: float, alt: float):
+                        lat: float, lon: float, alt: float, beta_angle_deg: float):
     """Print formatted transit table"""
     print(f"\n{'=' * 80}")
     print(f"Satellite: {satellite_name}")
     print(f"Library: skyfield (Python)")
     print(f"Observer: ({lat}°, {lon}°, {alt}m)")
+    print(f"Beta Angle at Epoch: {beta_angle_deg:.6f}°")
     print(f"Execution Time: {execution_time:.3f} ms")
     print(f"{'=' * 80}")
     
@@ -143,10 +172,12 @@ def build_results(omm_file: str, lat: float, lon: float, alt: float) -> Dict:
     """Compute transits for a single OMM file and return a JSON-serializable dict."""
     omm_data = parse_omm(omm_file)
     transits, execution_time = compute_transits(omm_data, lat, lon, alt)
+    beta_angle_deg = compute_beta_angle_deg(omm_data)
 
     satellites = [{
         "name": omm_data['OBJECT_NAME'],
         "norad_cat_id": omm_data.get('NORAD_CAT_ID'),
+        "beta_angle_deg": beta_angle_deg,
         "execution_time_ms": execution_time,
         "transits": [
             {
@@ -188,7 +219,10 @@ def main():
 
     omm_data = parse_omm(args.omm_file)
     transits, execution_time = compute_transits(omm_data, lat, lon, alt)
-    print_transit_table(omm_data['OBJECT_NAME'], transits, execution_time, lat, lon, alt)
+    beta_angle_deg = compute_beta_angle_deg(omm_data)
+    print_transit_table(
+        omm_data['OBJECT_NAME'], transits, execution_time, lat, lon, alt, beta_angle_deg
+    )
 
 if __name__ == "__main__":
     main()
