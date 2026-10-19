@@ -27,6 +27,74 @@ uv run python main.py resources/iss.omm.json
 uv run python main.py resources/iss.omm.json --observer '{"lat": 40.015, "lon": -105.2705, "alt": 1655}'
 ```
 
+## Transit Count Benchmark
+
+`transit_count_benchmark.py` measures how long each library takes to count the
+transits over a 24 hour window starting at the **current date and time**, for
+every satellite in a directory and every ground station in a JSON file, and
+checks whether the libraries agree on the number of transits.
+
+```bash
+uv run python transit_count_benchmark.py <satellite_dir> <groundstations.json>
+
+# e.g.
+uv run python transit_count_benchmark.py resources/tle resources/groundstations.json
+
+# Only some libraries, and save every per-pair result for later analysis
+uv run python transit_count_benchmark.py resources/tle resources/groundstations.json \
+    --libraries jspredict,skyfield --json-output results.json
+
+# Count only passes that climb above 10 degrees
+uv run python transit_count_benchmark.py resources/tle resources/groundstations.json --min-elevation 10
+```
+
+Options: `--min-elevation DEG` (default 5), `--hours N` (window length, default
+24), `--libraries a,b,c`, `--max-mismatch-rows N` (default 50) and
+`--json-output PATH`.
+
+**Inputs**
+
+- *Satellite directory* — every `.tle`/`.txt`/`.3le` file (2-line or 3-line
+  TLEs, one or many satellites per file) and every `.json` file (an OMM object
+  or a list of OMM objects). Other files are skipped with a warning.
+  pypredict can only read TLEs, so for OMM files it uses the
+  `TLE_LINE1`/`TLE_LINE2` fields; an OMM without them is reported as an error
+  for that library.
+- *Ground station file* — a JSON list in the format of
+  `resources/groundstations.json`:
+  `{"name": "...", "location": {"latitude": deg, "longitude": deg (east-positive), "height": meters}}`.
+
+**What is measured**
+
+- All libraries get identical inputs and the same window start time, and are
+  run one after another (never in parallel).
+- Timing covers only the transit search for one satellite/ground station pair.
+  Building the satellite and observer objects happens once up front and is
+  reported separately as *Setup*. Skyfield and jspredict are given the OMM
+  directly when one is available.
+- A transit is the span between AOS and LOS, where AOS and LOS are the times
+  the satellite crosses the minimum elevation (`--min-elevation`, default 5°)
+  going up and coming down. Both must fall inside the window: a pass already in
+  progress when the window opens, or still in progress when it closes, is not
+  counted, so a library that reports one is not credited with an extra
+  transit. Passes that never reach the minimum elevation are not transits.
+  Each library's native support is used: jspredict's `aos`/`los` events,
+  skyfield's `find_events(altitude_degrees=...)` and pypredict's
+  `Transit.above(...)`.
+- Even so, libraries can still differ on passes that are borderline: ones whose
+  peak barely reaches the minimum elevation (a few seconds long) or whose AOS/LOS
+  lands within a second or so of the window edge.
+
+**Output** — an execution-time summary per library, transit counts and time per
+ground station (with a ✓/✗ for whether every satellite agreed across libraries),
+and a list of each satellite/station pair where the counts differ. Pairs where a
+library raised an error are shown in the *Errors* column and excluded from the
+agreement check.
+
+The runners live in `benchmarks/transit_count/` (`common.py` plus one runner
+per library) and can be reused outside the orchestrator; they read a normalized
+satellite manifest and station list and print a JSON document.
+
 ## Benchmark Results — ISS (ZARYA)
 
 ### Input Parameters

@@ -360,3 +360,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+resources/groundstations.json
+resources/tle/
+.DS_Store
